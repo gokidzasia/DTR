@@ -239,6 +239,13 @@ button:hover {
   align-self: stretch;
 }
 
+.manual-scan {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
 .generator-shell {
   min-height: 100vh;
   padding: 24px;
@@ -309,6 +316,77 @@ button:hover {
 
 .dashboard-card strong,
 .dashboard-card small {
+  display: block;
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+}
+
+.admin-tab {
+  background: #ffffff;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.admin-tab.active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.admin-section {
+  display: none;
+}
+
+.admin-section.active {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-status {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--muted);
+}
+
+.employee-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.employee-card {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.employee-card img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
+.employee-card strong,
+.employee-card small {
   display: block;
 }
 
@@ -401,6 +479,21 @@ select {
   font-size: 20px;
 }
 
+.last-scan-profile {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.last-scan-profile img {
+  width: 78px;
+  height: 78px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
 .records {
   display: grid;
   gap: 10px;
@@ -490,6 +583,10 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .manual-scan {
+    grid-template-columns: 1fr;
+  }
+
   .camera-tools {
     grid-template-columns: 1fr;
   }
@@ -499,7 +596,8 @@ select {
   }
 
   .dashboard-filters,
-  .dashboard-metrics {
+  .dashboard-metrics,
+  .admin-form {
     grid-template-columns: 1fr;
   }
 

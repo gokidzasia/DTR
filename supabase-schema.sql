@@ -43,6 +43,11 @@ create policy "employees can be read by scanner"
 on public.employees for select
 using (active = true);
 
+create policy "employees can be managed by admin starter"
+on public.employees for all
+using (true)
+with check (true);
+
 create policy "attendance can be inserted by scanner"
 on public.attendance_records for insert
 with check (

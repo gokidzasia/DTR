@@ -18,7 +18,7 @@ function createQr(event) {
     return;
   }
 
-  const qrValue = name ? JSON.stringify({ staffId: id, name }) : id;
+  const qrValue = name ? JSON.stringify({ employeeId: id, name }) : id;
   const qrUrl = makeQrUrl(qrValue);
 
   qrPreview.innerHTML = `

@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-light-yellow: #FCEFA2;
+  --brand-lime: #C6E970;
+  --brand-orange: #FFBF60;
+  --brand-dark: #111111;
+  --brand-hill: #1C5112;
+  --text-color: #333333;
+  --white: #FFFFFF;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f8ef;
+  color: var(--text-color);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}

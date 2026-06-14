@@ -47,33 +47,10 @@
           <button id="exportButton" type="button">Export CSV</button>
           <a class="button-link" href="qr-generator.html">Generate QR</a>
           <a class="button-link" href="dashboard.html">Dashboard</a>
+          <a class="button-link" href="admin.html">Staff Admin</a>
         </div>
 
-        <form class="settings" id="settingsForm">
-          <label>
-            Google Apps Script upload URL
-            <input id="uploadUrl" name="uploadUrl" type="url" placeholder="https://script.google.com/macros/s/..." />
-          </label>
-          <label>
-            Supabase URL
-            <input id="supabaseUrl" name="supabaseUrl" type="url" placeholder="https://project.supabase.co" />
-          </label>
-          <label>
-            Supabase anon key
-            <input id="supabaseKey" name="supabaseKey" type="password" placeholder="Paste anon public key" />
-          </label>
-          <label>
-            Storage bucket
-            <input id="supabaseBucket" name="supabaseBucket" type="text" placeholder="attendance-evidence" />
-          </label>
-          <label>
-            Branch / Site Location
-            <input id="branchSite" name="branchSite" type="text" placeholder="Kantibas, Cebu" />
-          </label>
-          <label>
-            Email Edge Function URL
-            <input id="emailFunctionUrl" name="emailFunctionUrl" type="url" placeholder="https://project.functions.supabase.co/send-attendance-email" />
-          </label>
+        <form class="manual-scan" id="manualScanForm">
           <label>
             Manual staff ID
             <input id="manualCode" name="manualCode" type="text" placeholder="Use only if QR scanning is unavailable" />
@@ -102,29 +79,7 @@
       <img id="photoDialogImage" alt="Attendance evidence preview" />
     </dialog>
 
-    <script>
-      window.loadQrFallback = new Promise((resolve) => {
-        const sources = [
-          "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js",
-          "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js",
-        ];
-
-        function loadSource(index) {
-          if (window.jsQR || index >= sources.length) {
-            resolve(Boolean(window.jsQR));
-            return;
-          }
-
-          const script = document.createElement("script");
-          script.src = sources[index];
-          script.onload = () => resolve(true);
-          script.onerror = () => loadSource(index + 1);
-          document.head.appendChild(script);
-        }
-
-        loadSource(0);
-      });
-    </script>
+    <script src="vendor/jsQR.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

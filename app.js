@@ -9,12 +9,6 @@ const manualButton = document.getElementById("manualButton");
 const refreshCamerasButton = document.getElementById("refreshCamerasButton");
 const autoStartCamera = document.getElementById("autoStartCamera");
 const manualCode = document.getElementById("manualCode");
-const uploadUrl = document.getElementById("uploadUrl");
-const supabaseUrl = document.getElementById("supabaseUrl");
-const supabaseKey = document.getElementById("supabaseKey");
-const supabaseBucket = document.getElementById("supabaseBucket");
-const branchSite = document.getElementById("branchSite");
-const emailFunctionUrl = document.getElementById("emailFunctionUrl");
 const cameraSelect = document.getElementById("cameraSelect");
 const recordsEl = document.getElementById("records");
 const lastScan = document.getElementById("lastScan");
@@ -45,12 +39,6 @@ const CAMERA_ID_KEY = "dtr-camera-id";
 const AUTO_START_KEY = "dtr-auto-start-camera";
 const DUPLICATE_WINDOW_MS = 60_000;
 
-uploadUrl.value = localStorage.getItem(UPLOAD_URL_KEY) || "";
-supabaseUrl.value = localStorage.getItem(SUPABASE_URL_KEY) || "";
-supabaseKey.value = localStorage.getItem(SUPABASE_KEY_KEY) || "";
-supabaseBucket.value = localStorage.getItem(SUPABASE_BUCKET_KEY) || "attendance-evidence";
-branchSite.value = localStorage.getItem(BRANCH_SITE_KEY) || "";
-emailFunctionUrl.value = localStorage.getItem(EMAIL_FUNCTION_URL_KEY) || "";
 cameraSelect.value = localStorage.getItem(CAMERA_ID_KEY) || "";
 autoStartCamera.checked = localStorage.getItem(AUTO_START_KEY) !== "false";
 
@@ -82,13 +70,8 @@ function updateClock() {
   clock.textContent = new Date().toLocaleTimeString();
 }
 
-function saveSettings() {
-  localStorage.setItem(UPLOAD_URL_KEY, uploadUrl.value.trim());
-  localStorage.setItem(SUPABASE_URL_KEY, supabaseUrl.value.trim());
-  localStorage.setItem(SUPABASE_KEY_KEY, supabaseKey.value.trim());
-  localStorage.setItem(SUPABASE_BUCKET_KEY, supabaseBucket.value.trim() || "attendance-evidence");
-  localStorage.setItem(BRANCH_SITE_KEY, branchSite.value.trim());
-  localStorage.setItem(EMAIL_FUNCTION_URL_KEY, emailFunctionUrl.value.trim());
+function getStoredSetting(key, fallback = "") {
+  return localStorage.getItem(key) || fallback;
 }
 
 async function loadCameraSources() {
@@ -254,10 +237,9 @@ function dataUrlToBlob(dataUrl) {
 }
 
 function getSupabaseConfig() {
-  saveSettings();
-  const url = supabaseUrl.value.trim().replace(/\/$/, "");
-  const key = supabaseKey.value.trim();
-  const bucket = supabaseBucket.value.trim() || "attendance-evidence";
+  const url = getStoredSetting(SUPABASE_URL_KEY).trim().replace(/\/$/, "");
+  const key = getStoredSetting(SUPABASE_KEY_KEY).trim();
+  const bucket = getStoredSetting(SUPABASE_BUCKET_KEY, "attendance-evidence").trim() || "attendance-evidence";
 
   if (!url || !key || !bucket) {
     throw new Error("Supabase URL, anon key, and storage bucket are required before attendance can be accepted.");
@@ -302,7 +284,7 @@ async function findEmployee(staff) {
     employeeName: employee.full_name || staff.employeeName,
     email: employee.email || staff.email,
     registeredPhotoUrl: employee.registered_photo_url || staff.registeredPhotoUrl,
-    branchSite: employee.branch_site || branchSite.value.trim(),
+    branchSite: employee.branch_site || getStoredSetting(BRANCH_SITE_KEY),
   };
 }
 
@@ -398,8 +380,7 @@ async function saveAttendanceRecord(record) {
 }
 
 async function syncGoogleSheets(record) {
-  const url = uploadUrl.value.trim();
-  localStorage.setItem(UPLOAD_URL_KEY, url);
+  const url = getStoredSetting(UPLOAD_URL_KEY).trim();
 
   if (!url) {
     return "Google Sheets sync skipped";
@@ -416,8 +397,7 @@ async function syncGoogleSheets(record) {
 }
 
 async function sendEmailNotification(record) {
-  const url = emailFunctionUrl.value.trim();
-  localStorage.setItem(EMAIL_FUNCTION_URL_KEY, url);
+  const url = getStoredSetting(EMAIL_FUNCTION_URL_KEY).trim();
 
   if (!url || !record.email) {
     return "Email notification skipped";
@@ -478,7 +458,7 @@ async function recordScan(rawCode) {
       latitude: location.latitude,
       longitude: location.longitude,
       locationAddress: location.locationAddress,
-      branchSite: employee.branchSite || branchSite.value.trim() || "Unassigned branch",
+      branchSite: employee.branchSite || getStoredSetting(BRANCH_SITE_KEY) || "Unassigned branch",
       deviceUsed: getDeviceInfo(),
       originalPhotoDataUrl,
       evidencePhotoUrl: "",
@@ -717,11 +697,16 @@ function render() {
   if (records[0]) {
     const record = records[0];
     lastScan.innerHTML = `
-      <strong>${record.employeeId || record.staffId} ${record.attendanceType || record.type}</strong>
-      <p>${record.employeeName || record.staffName || "No employee name"}</p>
-      <p>${record.attendanceDate || record.date} ${record.attendanceTime || record.time}</p>
-      <p class="muted">${record.locationAddress || "No location"}</p>
-      <p class="muted">${record.verificationId || ""}</p>
+      <div class="last-scan-profile">
+        ${record.registeredPhotoUrl ? `<img src="${record.registeredPhotoUrl}" alt="${record.employeeName || "Employee"} profile photo" />` : ""}
+        <div>
+          <strong>${record.employeeId || record.staffId} ${record.attendanceType || record.type}</strong>
+          <p>${record.employeeName || record.staffName || "No employee name"}</p>
+          <p>${record.attendanceDate || record.date} ${record.attendanceTime || record.time}</p>
+          <p class="muted">${record.locationAddress || "No location"}</p>
+          <p class="muted">${record.verificationId || ""}</p>
+        </div>
+      </div>
     `;
   } else {
     lastScan.innerHTML = '<p class="muted">Waiting for first scan</p>';
@@ -768,9 +753,6 @@ cameraSelect.addEventListener("change", () => {
   if (stream) {
     startCamera().catch((error) => setStatus(error.message));
   }
-});
-[uploadUrl, supabaseUrl, supabaseKey, supabaseBucket, branchSite, emailFunctionUrl].forEach((input) => {
-  input.addEventListener("change", saveSettings);
 });
 manualButton.addEventListener("click", () => {
   const code = manualCode.value.trim();
