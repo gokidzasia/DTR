@@ -1,10 +1,5 @@
-import { AppShell } from "@/components/app-shell";
-import { EmployeeManager } from "@/components/employee-manager";
+import { redirect } from "next/navigation";
 
 export default function EmployeesPage() {
-  return (
-    <AppShell active="Employees">
-      <EmployeeManager />
-    </AppShell>
-  );
+  redirect("/dashboard");
 }

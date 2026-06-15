@@ -1,5 +1,5 @@
-import { DashboardClient } from "@/components/dashboard-client";
+import { AdminWorkspace } from "@/components/admin-workspace";
 
 export default function DashboardPage() {
-  return <DashboardClient />;
+  return <AdminWorkspace />;
 }
