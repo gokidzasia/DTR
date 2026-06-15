@@ -2,8 +2,9 @@ import { google } from "googleapis";
 import type { AttendanceRecord, Employee } from "@/lib/types";
 
 function getSheetsClient() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
+  const credentials = getGoogleCredentials();
+  const email = credentials?.email || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key = credentials?.key || normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
   const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 
   if (!email || !key || !spreadsheetId) {
@@ -17,6 +18,25 @@ function getSheetsClient() {
   });
 
   return { sheets: google.sheets({ version: "v4", auth }), spreadsheetId };
+}
+
+function getGoogleCredentials() {
+  const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!rawJson) return null;
+
+  try {
+    const parsed = JSON.parse(rawJson) as { client_email?: string; private_key?: string };
+    if (parsed.client_email && parsed.private_key) {
+      return {
+        email: parsed.client_email,
+        key: normalizeKeyLineBreaks(parsed.private_key)
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 function normalizePrivateKey(rawKey?: string) {
