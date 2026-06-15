@@ -10,14 +10,18 @@ import { formatDeviceInfo } from "@/lib/utils";
 import type { AttendanceType, Employee } from "@/lib/types";
 
 type EmployeePreview = Pick<Employee, "employee_id" | "full_name" | "email" | "profile_photo_url" | "branch_name">;
+const branchOptions = ["Camp Goducate", "Doane Baptist Church"];
 
 export function AttendanceScanner() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scanRef = useRef<HTMLCanvasElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
+  const [cameraId, setCameraId] = useState("");
   const [manualId, setManualId] = useState("");
   const [branch, setBranch] = useState("");
+  const [clock, setClock] = useState("");
   const [status, setStatus] = useState("Start camera to scan attendance.");
   const [employee, setEmployee] = useState<EmployeePreview | null>(null);
   const [lastResult, setLastResult] = useState<{ type: AttendanceType; verificationId: string; warnings: string[] } | null>(null);
@@ -28,15 +32,79 @@ export function AttendanceScanner() {
   }, [stream]);
 
   useEffect(() => {
+    loadCameras();
+  }, []);
+
+  useEffect(() => {
+    function updateClock() {
+      setClock(new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      }).format(new Date()));
+    }
+
+    updateClock();
+    const timer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (!stream) return;
     const timer = window.setInterval(scanFrame, 700);
     return () => window.clearInterval(timer);
   }, [stream, busy]);
 
-  async function startCamera() {
+  function say(message: string) {
+    setStatus(message);
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(message);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function playScanSound() {
     try {
+      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const audio = new AudioContextClass();
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.08;
+      oscillator.connect(gain);
+      gain.connect(audio.destination);
+      oscillator.start();
+      oscillator.stop(audio.currentTime + 0.14);
+    } catch {
+      // Sound feedback is optional.
+    }
+  }
+
+  async function loadCameras() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((device) => device.kind === "videoinput");
+      setCameras(videoDevices);
+      if (!cameraId && videoDevices[0]?.deviceId) {
+        setCameraId(videoDevices[0].deviceId);
+      }
+    } catch {
+      setStatus("Camera list is unavailable. Start camera or allow camera permission.");
+    }
+  }
+
+  async function startCamera(nextCameraId = cameraId) {
+    try {
+      stream?.getTracks().forEach((track) => track.stop());
       const cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: nextCameraId
+          ? { deviceId: { exact: nextCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
       if (videoRef.current) {
@@ -44,9 +112,10 @@ export function AttendanceScanner() {
         await videoRef.current.play();
       }
       setStream(cameraStream);
-      setStatus("Camera ready. Scan QR or enter ID manually.");
+      await loadCameras();
+      say("Camera ready. Scan QR or enter ID manually.");
     } catch {
-      setStatus("Camera permission is required before attendance can be accepted.");
+      say("Camera permission is required before attendance can be accepted.");
     }
   }
 
@@ -55,6 +124,13 @@ export function AttendanceScanner() {
     setStream(null);
     if (videoRef.current) videoRef.current.srcObject = null;
     setStatus("Camera stopped.");
+  }
+
+  async function changeCamera(nextCameraId: string) {
+    setCameraId(nextCameraId);
+    if (stream) {
+      await startCamera(nextCameraId);
+    }
   }
 
   function scanFrame() {
@@ -101,9 +177,11 @@ export function AttendanceScanner() {
     setBusy(true);
     try {
       if (!stream) throw new Error("Camera is required.");
+      say("Taking photo for evidence.");
       const photoDataUrl = capturePhoto();
+      say("Getting GPS location.");
       const position = await getGps();
-      setStatus("Saving attendance evidence...");
+      say("Saving attendance evidence.");
 
       const response = await fetch("/api/attendance", {
         method: "POST",
@@ -123,9 +201,10 @@ export function AttendanceScanner() {
       setEmployee(payload.employee);
       const warnings = Array.isArray(payload.integrationWarnings) ? payload.integrationWarnings : [];
       setLastResult({ type: payload.attendanceType, verificationId: payload.verificationId, warnings });
-      setStatus(warnings.length ? `${payload.employee.full_name} saved, but Google Sheets needs attention.` : `${payload.employee.full_name} ${payload.attendanceType} recorded.`);
+      playScanSound();
+      say(warnings.length ? `${payload.employee.full_name} saved, but Google Sheets needs attention.` : `${payload.employee.full_name} ${payload.attendanceType} recorded.`);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Attendance failed.");
+      say(error instanceof Error ? error.message : "Attendance failed.");
     } finally {
       window.setTimeout(() => setBusy(false), 2200);
     }
@@ -139,7 +218,10 @@ export function AttendanceScanner() {
             <p className="text-xs font-black uppercase text-brand-hill">Attendance Scanner</p>
             <CardTitle>QR / ID Attendance</CardTitle>
           </div>
-          <ShieldCheck className="text-brand-hill" />
+          <div className="flex items-center gap-3">
+            <span className="rounded-ui border border-slate-200 bg-white px-3 py-2 text-lg font-black text-brand-dark">{clock}</span>
+            <ShieldCheck className="text-brand-hill" />
+          </div>
         </CardHeader>
         <div className="relative overflow-hidden rounded-ui bg-brand-dark">
           <video ref={videoRef} muted playsInline className="aspect-video w-full object-cover" />
@@ -149,13 +231,25 @@ export function AttendanceScanner() {
           <div className="absolute bottom-4 left-4 right-4 rounded-ui bg-white/95 p-3 text-sm font-bold">{status}</div>
         </div>
         <canvas ref={canvasRef} hidden />
-        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto_auto]">
           <Label>
             Branch / Site
             <Select value={branch} onChange={(event) => setBranch(event.target.value)}>
               <option value="">Default branch</option>
-              <option value="Kantibas, Cebu">Kantibas, Cebu</option>
-              <option value="Main Office">Main Office</option>
+              {branchOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </Select>
+          </Label>
+          <Label>
+            Camera
+            <Select value={cameraId} onChange={(event) => changeCamera(event.target.value)} onFocus={loadCameras}>
+              <option value="">Default camera</option>
+              {cameras.map((camera, index) => (
+                <option key={camera.deviceId} value={camera.deviceId}>
+                  {camera.label || `Camera ${index + 1}`}
+                </option>
+              ))}
             </Select>
           </Label>
           <Label>
@@ -163,7 +257,7 @@ export function AttendanceScanner() {
             <Input value={manualId} onChange={(event) => setManualId(event.target.value)} placeholder="EMP-001" />
           </Label>
           <Button type="button" onClick={() => manualId && submitAttendance(manualId)}>Submit ID</Button>
-          <Button type="button" variant="outline" onClick={stream ? stopCamera : startCamera}>
+          <Button type="button" variant="outline" onClick={stream ? stopCamera : () => startCamera()}>
             {stream ? "Stop" : "Start Camera"}
           </Button>
         </div>

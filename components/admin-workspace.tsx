@@ -58,9 +58,10 @@ export function AdminWorkspace() {
       setStatus(payload.error || "Could not load employees.");
       return;
     }
-    setEmployees(payload);
-    if (!qrEmployeeId && payload[0]?.employee_id) {
-      setQrEmployeeId(payload[0].employee_id);
+    const activeRows = payload.filter((employee: EmployeeRow) => employee.status === "active");
+    setEmployees(activeRows);
+    if (!qrEmployeeId && activeRows[0]?.employee_id) {
+      setQrEmployeeId(activeRows[0].employee_id);
     }
   }
 
@@ -113,7 +114,7 @@ export function AdminWorkspace() {
 
   const today = new Date().toISOString().slice(0, 10);
   const todayRows = records.filter((record) => record.timestamp.startsWith(today));
-  const activeEmployees = employees.filter((employee) => employee.status === "active");
+  const activeEmployees = employees;
   const selectedQrEmployee = employees.find((employee) => employee.employee_id === qrEmployeeId);
   const qrPayload = selectedQrEmployee
     ? JSON.stringify({ employeeId: selectedQrEmployee.employee_id, name: selectedQrEmployee.full_name })

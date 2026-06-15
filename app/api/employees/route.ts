@@ -85,6 +85,17 @@ export async function DELETE(request: Request) {
     }
 
     const supabase = createSupabaseAdminClient();
+    const { data: deleted, error: deleteError } = await supabase
+      .from("employees")
+      .delete()
+      .eq("employee_id", employeeId)
+      .select("employee_id,full_name,status")
+      .single();
+
+    if (!deleteError) {
+      return NextResponse.json(deleted);
+    }
+
     const { data, error } = await supabase
       .from("employees")
       .update({ status: "inactive" })
