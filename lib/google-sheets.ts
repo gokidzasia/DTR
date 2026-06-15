@@ -33,13 +33,25 @@ function normalizePrivateKey(rawKey?: string) {
   try {
     const parsed = JSON.parse(unquoted) as { private_key?: string };
     if (parsed.private_key) {
-      return parsed.private_key.replace(/\\n/g, "\n");
+      return normalizeKeyLineBreaks(parsed.private_key);
     }
   } catch {
     // The env value is usually just the private_key string, not the full JSON file.
   }
 
-  return unquoted.replace(/\\n/g, "\n");
+  const privateKeyMatch = unquoted.match(/["']?private_key["']?\s*:\s*["']([\s\S]*?)["']\s*,?$/);
+  if (privateKeyMatch?.[1]) {
+    return normalizeKeyLineBreaks(privateKeyMatch[1]);
+  }
+
+  return normalizeKeyLineBreaks(unquoted);
+}
+
+function normalizeKeyLineBreaks(value: string) {
+  return value
+    .replace(/\\\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
 }
 
 async function ensureSheet(title: string, headers: string[]) {
