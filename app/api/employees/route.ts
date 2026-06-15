@@ -64,12 +64,12 @@ export async function POST(request: Request) {
       .single();
 
     if (error) throw error;
-    await syncEmployeeToSheets({
+    const sheetsResult = await syncEmployeeToSheets({
       ...(saved as Employee),
       branch_name: saved.branches?.name || null
     });
 
-    return NextResponse.json(saved);
+    return NextResponse.json({ ...saved, sheetsWarning: sheetsResult?.warning || null });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Employee save failed." }, { status: 500 });
   }

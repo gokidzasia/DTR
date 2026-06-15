@@ -3,7 +3,7 @@ import type { AttendanceRecord, Employee } from "@/lib/types";
 
 function getSheetsClient() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const key = normalizePrivateKey(process.env.GOOGLE_PRIVATE_KEY);
   const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 
   if (!email || !key || !spreadsheetId) {
@@ -17,6 +17,29 @@ function getSheetsClient() {
   });
 
   return { sheets: google.sheets({ version: "v4", auth }), spreadsheetId };
+}
+
+function normalizePrivateKey(rawKey?: string) {
+  if (!rawKey) return undefined;
+
+  const trimmed = rawKey.trim();
+  const unquoted = (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  )
+    ? trimmed.slice(1, -1)
+    : trimmed;
+
+  try {
+    const parsed = JSON.parse(unquoted) as { private_key?: string };
+    if (parsed.private_key) {
+      return parsed.private_key.replace(/\\n/g, "\n");
+    }
+  } catch {
+    // The env value is usually just the private_key string, not the full JSON file.
+  }
+
+  return unquoted.replace(/\\n/g, "\n");
 }
 
 async function ensureSheet(title: string, headers: string[]) {
@@ -62,9 +85,13 @@ export async function syncAttendanceToSheets(record: AttendanceRecord) {
 export async function syncEmployeeToSheets(employee: Employee) {
   const client = getSheetsClient();
   if (!client) return;
-  await ensureSheet("EMPLOYEES", ["Employee ID", "Name", "Email", "Position", "Department", "Branch", "Status"]);
-  await ensureSheet(`EMP_${employee.full_name.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`, ["Date", "Time In", "Time Out", "Hours Worked", "Branch", "Location", "Status"]);
-  await append(client, "EMPLOYEES", [employee.employee_id, employee.full_name, employee.email, employee.position, employee.department, employee.branch_name, employee.status]);
+  try {
+    await ensureSheet("EMPLOYEES", ["Employee ID", "Name", "Email", "Position", "Department", "Branch", "Status"]);
+    await ensureSheet(`EMP_${employee.full_name.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`, ["Date", "Time In", "Time Out", "Hours Worked", "Branch", "Location", "Status"]);
+    await append(client, "EMPLOYEES", [employee.employee_id, employee.full_name, employee.email, employee.position, employee.department, employee.branch_name, employee.status]);
+  } catch (error) {
+    return { warning: error instanceof Error ? error.message : "Google Sheets sync failed." };
+  }
 }
 
 async function append(client: NonNullable<ReturnType<typeof getSheetsClient>>, sheet: string, row: unknown[]) {
