@@ -1,10 +1,12 @@
-import dynamic from "next/dynamic";
+"use client";
 
-const ScannerPageClient = dynamic(
-  () => import("@/components/scanner-page-client").then((module) => module.ScannerPageClient),
-  { ssr: false }
-);
+import { AppShell } from "@/components/app-shell";
+import { AttendanceScanner } from "@/components/attendance-scanner";
 
 export default function ScannerPage() {
-  return <ScannerPageClient />;
+  return (
+    <AppShell active="Scanner">
+      <AttendanceScanner />
+    </AppShell>
+  );
 }
