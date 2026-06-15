@@ -110,20 +110,41 @@ export async function POST(request: Request) {
     if (insertError) throw insertError;
 
     const record = saved as AttendanceRecord;
-    await Promise.allSettled([
+    const [sheetsResult, emailResult] = await Promise.allSettled([
       syncAttendanceToSheets(record),
       sendAttendanceEmail(record)
     ]);
+    const integrationWarnings = collectIntegrationWarnings(sheetsResult, emailResult);
 
     return NextResponse.json({
       attendanceType,
       verificationId,
       employee: normalizeEmployee(employee),
-      record
+      record,
+      integrationWarnings
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Attendance failed." }, { status: 500 });
   }
+}
+
+function collectIntegrationWarnings(...results: PromiseSettledResult<unknown>[]) {
+  return results
+    .map((result) => {
+      if (result.status === "rejected") {
+        return result.reason instanceof Error ? result.reason.message : "External sync failed.";
+      }
+      if (
+        result.value &&
+        typeof result.value === "object" &&
+        "warning" in result.value &&
+        typeof result.value.warning === "string"
+      ) {
+        return result.value.warning;
+      }
+      return null;
+    })
+    .filter((warning): warning is string => Boolean(warning));
 }
 
 function parseEmployeeCode(code: string) {

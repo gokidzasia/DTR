@@ -65,21 +65,25 @@ export async function syncAttendanceToSheets(record: AttendanceRecord) {
   const client = getSheetsClient();
   if (!client) return;
 
-  const month = new Date(record.timestamp).toLocaleString("en-US", { month: "long" }).toUpperCase();
-  const year = new Date(record.timestamp).getFullYear();
-  const monthlySheet = `${year}_${month}`;
-  const employeeSheet = `EMP_${record.employee_name.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`;
+  try {
+    const month = new Date(record.timestamp).toLocaleString("en-US", { month: "long" }).toUpperCase();
+    const year = new Date(record.timestamp).getFullYear();
+    const monthlySheet = `${year}_${month}`;
+    const employeeSheet = `EMP_${record.employee_name.replace(/[^a-z0-9]+/gi, "_").toUpperCase()}`;
 
-  const masterHeaders = ["Timestamp", "Date", "Month", "Employee ID", "Name", "Email", "Attendance Type", "Branch", "Location", "Latitude", "Longitude", "Verification ID", "Original Photo URL", "Verification Photo URL"];
-  await ensureSheet("MASTER_ATTENDANCE", masterHeaders);
-  await ensureSheet(monthlySheet, masterHeaders);
-  await ensureSheet(employeeSheet, ["Date", "Time In", "Time Out", "Hours Worked", "Branch", "Location", "Status"]);
-  await ensureSheet("ATTENDANCE_EVIDENCE", ["Timestamp", "Employee ID", "Employee Name", "Attendance Type", "Original Photo URL", "Verification Photo URL", "Location"]);
+    const masterHeaders = ["Timestamp", "Date", "Month", "Employee ID", "Name", "Email", "Attendance Type", "Branch", "Location", "Latitude", "Longitude", "Verification ID", "Original Photo URL", "Verification Photo URL"];
+    await ensureSheet("MASTER_ATTENDANCE", masterHeaders);
+    await ensureSheet(monthlySheet, masterHeaders);
+    await ensureSheet(employeeSheet, ["Date", "Time In", "Time Out", "Hours Worked", "Branch", "Location", "Status"]);
+    await ensureSheet("ATTENDANCE_EVIDENCE", ["Timestamp", "Employee ID", "Employee Name", "Attendance Type", "Original Photo URL", "Verification Photo URL", "Location"]);
 
-  const masterRow = [record.timestamp, record.date, month, record.employee_id, record.employee_name, record.email, record.attendance_type, record.branch, record.address, record.latitude, record.longitude, record.verification_id, record.original_photo_url, record.verification_photo_url];
-  await append(client, "MASTER_ATTENDANCE", masterRow);
-  await append(client, monthlySheet, masterRow);
-  await append(client, "ATTENDANCE_EVIDENCE", [record.timestamp, record.employee_id, record.employee_name, record.attendance_type, record.original_photo_url, record.verification_photo_url, record.address]);
+    const masterRow = [record.timestamp, record.date, month, record.employee_id, record.employee_name, record.email, record.attendance_type, record.branch, record.address, record.latitude, record.longitude, record.verification_id, record.original_photo_url, record.verification_photo_url];
+    await append(client, "MASTER_ATTENDANCE", masterRow);
+    await append(client, monthlySheet, masterRow);
+    await append(client, "ATTENDANCE_EVIDENCE", [record.timestamp, record.employee_id, record.employee_name, record.attendance_type, record.original_photo_url, record.verification_photo_url, record.address]);
+  } catch (error) {
+    return { warning: error instanceof Error ? error.message : "Google Sheets sync failed." };
+  }
 }
 
 export async function syncEmployeeToSheets(employee: Employee) {

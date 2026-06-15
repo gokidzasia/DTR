@@ -20,7 +20,7 @@ export function AttendanceScanner() {
   const [branch, setBranch] = useState("");
   const [status, setStatus] = useState("Start camera to scan attendance.");
   const [employee, setEmployee] = useState<EmployeePreview | null>(null);
-  const [lastResult, setLastResult] = useState<{ type: AttendanceType; verificationId: string } | null>(null);
+  const [lastResult, setLastResult] = useState<{ type: AttendanceType; verificationId: string; warnings: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -121,8 +121,9 @@ export function AttendanceScanner() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Attendance was rejected.");
       setEmployee(payload.employee);
-      setLastResult({ type: payload.attendanceType, verificationId: payload.verificationId });
-      setStatus(`${payload.employee.full_name} ${payload.attendanceType} recorded.`);
+      const warnings = Array.isArray(payload.integrationWarnings) ? payload.integrationWarnings : [];
+      setLastResult({ type: payload.attendanceType, verificationId: payload.verificationId, warnings });
+      setStatus(warnings.length ? `${payload.employee.full_name} saved, but Google Sheets needs attention.` : `${payload.employee.full_name} ${payload.attendanceType} recorded.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Attendance failed.");
     } finally {
@@ -196,6 +197,11 @@ export function AttendanceScanner() {
               <span className="w-max rounded-full bg-brand-lime px-3 py-1 text-xs font-black">{lastResult.type}</span>
               <strong>{lastResult.verificationId}</strong>
               <p className="text-sm text-slate-500">Photo evidence, timestamp, and GPS were saved automatically.</p>
+              {lastResult.warnings.length ? (
+                <p className="rounded-ui border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900">
+                  Google Sheets warning: {lastResult.warnings.join(" ")}
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="text-slate-500">Waiting for attendance.</p>
